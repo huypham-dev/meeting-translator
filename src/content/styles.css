@@ -1,0 +1,52 @@
+:host {
+  all: initial;
+}
+
+.caption-container {
+  position: fixed;
+  left: 50%;
+  /* Top placement so it never overlaps Google Meet's own bottom-anchored
+     captions; 84px clears Meet's top meeting-info bar. */
+  top: 84px;
+  transform: translate(-50%, -8px);
+  max-width: 78vw;
+  z-index: 2147483647;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+}
+
+.caption-container.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.caption-box {
+  background: rgba(15, 15, 20, 0.82);
+  color: #ffffff;
+  font-family: "Google Sans", Roboto, Arial, sans-serif;
+  font-size: 18px;
+  line-height: 1.45;
+  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: calc((18px * 1.45 + 4px) * 5);
+  overflow: hidden;
+}
+
+.caption-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.68;
+  transition: opacity 180ms ease-out;
+}
+
+.caption-line.live {
+  opacity: 1;
+  font-weight: 600;
+}
