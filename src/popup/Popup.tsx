@@ -162,6 +162,23 @@ export function Popup() {
       )}
 
       <button
+        onClick={() => chrome.runtime.openOptionsPage()}
+        style={{
+          width: "100%",
+          marginBottom: 10,
+          padding: "8px 0",
+          borderRadius: 10,
+          border: "1px solid #3a3a3e",
+          background: "transparent",
+          color: "#f2f2f2",
+          fontSize: 13,
+          cursor: "pointer",
+        }}
+      >
+        Settings (API keys)
+      </button>
+
+      <button
         onClick={handleClick}
         disabled={busy || status === "stopping"}
         style={{

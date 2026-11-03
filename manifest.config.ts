@@ -4,7 +4,7 @@ import pkg from "./package.json";
 export default defineManifest({
   manifest_version: 3,
   name: "Meet Live Translator (EN → VI)",
-  description: "Low-latency English to Vietnamese live captions for Google Meet.",
+  description: "Live English to Vietnamese captions for Google Meet and YouTube, with saved meeting notes and AI summaries.",
   version: pkg.version,
   icons: {
     16: "icons/icon16.png",
@@ -18,6 +18,10 @@ export default defineManifest({
       48: "icons/icon48.png",
       128: "icons/icon128.png",
     },
+  },
+  options_ui: {
+    page: "src/options/index.html",
+    open_in_tab: true,
   },
   background: {
     service_worker: "src/background/service-worker.ts",

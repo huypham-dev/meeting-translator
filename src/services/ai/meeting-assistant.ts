@@ -3,13 +3,11 @@ const MODEL = "gpt-4o-mini";
 /**
  * Answers a free-form question about the ongoing meeting, grounded in a
  * transcript excerpt supplied by the caller (see transcript-store.ts).
- * Reuses VITE_OPENAI_API_KEY - the same key used by the optional OpenAI
- * translation provider (see providers.ts security note re: bundled keys).
+ * Uses the OpenAI key the user entered in Settings.
  */
-export async function askAboutMeeting(question: string, transcriptContext: string): Promise<string> {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
-  if (!apiKey) {
-    throw new Error("Ask AI requires VITE_OPENAI_API_KEY to be set in .env");
+export async function askAboutMeeting(question: string, transcriptContext: string, apiKey: string): Promise<string> {
+    if (!apiKey.trim()) {
+    throw new Error("Ask AI needs an OpenAI API key. Add one in Settings.");
   }
 
   const trimmedContext = transcriptContext.trim();

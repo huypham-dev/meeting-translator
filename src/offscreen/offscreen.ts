@@ -1,5 +1,6 @@
 import { createLogger } from "@/shared/logger";
 import { isExtensionMessage, MessageType, type ExtensionMessage } from "@/shared/messages";
+import type { ProviderSettings } from "@/shared/settings";
 import { PCM_CHUNK_MS, PCM_SAMPLE_RATE, type CaptionState } from "@/shared/types";
 import { DeepgramSTTProvider } from "@/services/stt/deepgram";
 import type { StreamingSTTProvider } from "@/services/stt/types";
@@ -31,7 +32,7 @@ function reportStatus(status: "starting" | "listening" | "error", message?: stri
   sendToBackground({ type: MessageType.STATUS_UPDATE, payload: { status, message } });
 }
 
-async function startCapture(streamId: string, _tabId: number, context?: string): Promise<void> {
+async function startCapture(streamId: string, _tabId: number, settings: ProviderSettings, context?: string): Promise<void> {
   if (audioContext) {
     log.warn("Capture already active, stopping previous session first");
     await stopCapture();
@@ -87,17 +88,14 @@ async function startCapture(streamId: string, _tabId: number, context?: string):
   }
 
   try {
-    const apiKey = import.meta.env.VITE_DEEPGRAM_API_KEY as string | undefined;
     sttProvider = new DeepgramSTTProvider({
-      apiKey: apiKey ?? "",
+      apiKey: settings.deepgramApiKey,
       sampleRate: PCM_SAMPLE_RATE,
       language: SOURCE_LANGUAGE,
     });
 
-    const translationProviderName =
-      (import.meta.env.VITE_TRANSLATION_PROVIDER as "mymemory" | "openai" | undefined) ?? "mymemory";
-    const provider = createTranslationProvider(translationProviderName, {
-      openAiApiKey: import.meta.env.VITE_OPENAI_API_KEY as string | undefined,
+    const provider = createTranslationProvider(settings.translationProvider, {
+      openAiApiKey: settings.openAiApiKey,
       context,
     });
     translator = new IncrementalTranslator(provider, SOURCE_LANGUAGE, TARGET_LANGUAGE);
@@ -188,7 +186,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   if (!isExtensionMessage(message)) return undefined;
 
   if (message.type === MessageType.INIT_CAPTURE) {
-    startCapture(message.payload.streamId, message.payload.tabId, message.payload.context)
+    startCapture(message.payload.streamId, message.payload.tabId, message.payload.settings, message.payload.context)
       .then(() => sendResponse({ ok: true }))
       .catch((err: unknown) => sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }));
     return true;

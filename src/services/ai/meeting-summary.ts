@@ -2,13 +2,12 @@ const MODEL = "gpt-4.1";
 
 /**
  * Summarizes a full meeting transcript into key points, decisions and action
- * items, written in the transcript's own language. Uses the same
- * VITE_OPENAI_API_KEY as Ask AI (see providers.ts security note re: bundled keys).
+ * items, written in the transcript's own language. Uses the OpenAI key the
+ * user entered in Settings.
  */
-export async function summarizeMeeting(transcript: string): Promise<string> {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
-  if (!apiKey) {
-    throw new Error("Summary requires VITE_OPENAI_API_KEY to be set in .env");
+export async function summarizeMeeting(transcript: string, apiKey: string): Promise<string> {
+    if (!apiKey.trim()) {
+    throw new Error("Summary needs an OpenAI API key. Add one in Settings.");
   }
   if (!transcript.trim()) {
     throw new Error("Nothing to summarize yet");

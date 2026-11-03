@@ -35,8 +35,7 @@ export class MyMemoryTranslationProvider implements TranslationProvider {
 
 /**
  * Optional OpenAI-backed provider for higher quality translations.
- * Requires VITE_OPENAI_API_KEY. See README security notes: shipping a
- * real API key inside a public extension bundle is not safe for production.
+ * Requires the OpenAI key the user entered in Settings.
  */
 export class OpenAITranslationProvider implements TranslationProvider {
   constructor(

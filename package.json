@@ -1,13 +1,14 @@
 {
   "name": "meet-live-translator",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Low-latency English -> Vietnamese live captions for Google Meet",
   "type": "module",
   "scripts": {
     "dev": "vite build --watch --mode development",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "package": "vite build && rm -f meet-live-translator.zip && cd dist && zip -qr ../meet-live-translator.zip ."
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -1,3 +1,4 @@
+import type { ProviderSettings } from "./settings";
 import type { CaptionState, StatusUpdate, TranscriptResult } from "./types";
 
 /**
@@ -34,7 +35,7 @@ export type ExtensionMessage =
   | { type: typeof MessageType.START_TRANSLATION; payload?: { context?: string } }
   | { type: typeof MessageType.STOP_TRANSLATION }
   | { type: typeof MessageType.GET_STATUS }
-  | { type: typeof MessageType.INIT_CAPTURE; payload: { streamId: string; tabId: number; context?: string } }
+  | { type: typeof MessageType.INIT_CAPTURE; payload: { streamId: string; tabId: number; context?: string; settings: ProviderSettings } }
   | { type: typeof MessageType.STOP_CAPTURE }
   | { type: typeof MessageType.OFFSCREEN_READY }
   | { type: typeof MessageType.STATUS_UPDATE; payload: StatusUpdate }

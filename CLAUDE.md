@@ -11,7 +11,7 @@ npm run dev         # vite build --watch (no HMR: reload the extension + refresh
 npm run typecheck   # tsc --noEmit
 ```
 
-There is no test runner or linter configured. Config lives in `.env` (copy from `.env.example`): `VITE_DEEPGRAM_API_KEY`, `VITE_TRANSLATION_PROVIDER` (`mymemory` | `openai`), `VITE_OPENAI_API_KEY` (also required by the Ask AI sidebar). These are inlined into the bundle at build time, so changing `.env` requires a rebuild; never ship a build containing real keys.
+There is no test runner or linter configured. `npm run package` builds and zips `dist/` for the Web Store. API keys are **not** in `.env` or the bundle: users enter them on the Options page (`src/options/`), stored via `src/shared/settings.ts` in `chrome.storage.local`. The service worker reads them and passes them to the offscreen doc in `INIT_CAPTURE`, since offscreen documents have no `chrome.storage`. Never reintroduce `VITE_*` keys.
 
 ## Architecture
 
@@ -26,7 +26,7 @@ Key points that span files:
 - **AudioWorklet** is plain JS in `public/worklets/audio-processor.js`, loaded at runtime; `src/offscreen/audio-worklet.ts` only holds shared constants — keep them in sync.
 - **Provider seams**: `StreamingSTTProvider` (`src/services/stt/types.ts`, Deepgram impl) and `TranslationProvider` (`src/services/translation/types.ts`, registered in `createTranslationProvider` in `providers.ts`). Swap implementations without touching offscreen/popup/overlay.
 - **Stale-translation protection**: `IncrementalTranslator` uses a version counter so slow responses never overwrite newer captions; interim results are debounced (~150ms), finals bypass the debounce.
-- **Content script** (`src/content/content-script.tsx`) mounts both `CaptionOverlay` and `AskAiSidebar` into Shadow DOM (styles in `styles.css`). `transcript-store.ts` independently listens to `TRANSLATION_UPDATE` to keep a rolling transcript used as context for `src/services/ai/meeting-assistant.ts` (OpenAI `gpt-4o-mini` Q&A).
+- **Content script** (`src/content/content-script.tsx`) mounts both `CaptionOverlay` and `AskAiSidebar` into Shadow DOM (styles in `styles.css`). `transcript-store.ts` independently listens to `TRANSLATION_UPDATE` to keep a rolling transcript used as context for `src/services/ai/meeting-assistant.ts` (OpenAI `gpt-4o-mini` Q&A). `src/content/notes-store.ts` persists each Start→Stop session as a `Meeting` (source-language lines only) to `chrome.storage.local`; `NotesTab.tsx` is its UI, and summaries use `gpt-4.1` via `SUMMARIZE_MEETING`.
 - Host matches (content script + `host_permissions`) are in `manifest.config.ts`; any new API domain must be added there.
 - Path alias `@/` → `src/` (see `tsconfig.json` / `vite.config.ts`).
 

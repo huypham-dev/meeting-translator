@@ -42,8 +42,6 @@ manifest.config.ts                   MV3 manifest (via @crxjs/vite-plugin)
 
 ```bash
 npm install
-cp .env.example .env
-# edit .env and set VITE_DEEPGRAM_API_KEY
 npm run build
 ```
 
@@ -53,45 +51,43 @@ Then load it in Chrome:
 2. Enable **Developer mode** (top right)
 3. Click **Load unpacked**
 4. Select the generated `dist/` folder
+5. Click the extension icon -> **Settings (API keys)** and enter your Deepgram key
 
 For iterative development, `npm run dev` runs `vite build --watch`; reload the
 extension (and refresh the Meet tab) after each rebuild.
 
 ## Using it
 
-1. Join a Google Meet call.
-2. Click the extension icon → **Start Translation**.
-3. Vietnamese captions appear near the bottom of the Meet window as remote
-   participants speak. Click **Stop** to end the session (audio, WebSocket,
-   and AudioContext are fully torn down). You can Start/Stop repeatedly
-   without reloading Meet.
+1. Join a Google Meet call (or open a YouTube video).
+2. Click the extension icon -> **Start Translation**.
+3. Vietnamese captions appear near the bottom of the page as people speak.
+   Click **Stop** to end the session. You can Start/Stop repeatedly without
+   reloading the page.
+4. Open the **AI** button -> **Notes** tab to see saved meetings, generate an
+   AI summary, rename, delete, or download a meeting as Markdown.
 
-## Configuration (`.env`)
+## Settings
 
-| Variable | Purpose |
+API keys are entered by the user on the extension's Settings page and stored
+in `chrome.storage.local`. Nothing is bundled into the extension, so a build
+contains no secrets.
+
+| Setting | Purpose |
 |---|---|
-| `VITE_DEEPGRAM_API_KEY` | [Deepgram](https://console.deepgram.com/) streaming STT key |
-| `VITE_TRANSLATION_PROVIDER` | `mymemory` (free, keyless, default) or `openai` |
-| `VITE_OPENAI_API_KEY` | Only needed if `VITE_TRANSLATION_PROVIDER=openai` |
+| Deepgram API key (required) | Streaming speech-to-text |
+| Translation provider | `MyMemory` (free, no key) or `OpenAI` |
+| OpenAI API key (optional) | OpenAI translation, Ask AI, and meeting summaries |
 
-### ⚠️ Security note
+See [PRIVACY.md](PRIVACY.md) for what data leaves the browser.
 
-`.env` values are compiled directly into the extension bundle (`import.meta.env`)
-and are **readable by anyone who inspects the unpacked/`.crx` bundle**. This is
-acceptable for local development only. **Do not publish a build containing a
-real API key to the Chrome Web Store or anywhere public.**
+## Packaging for the Chrome Web Store
 
-For a real release, remove provider keys from the extension entirely and
-proxy through your own backend instead:
-
-```
-Extension → your backend (holds secrets) → Deepgram / translation provider
+```bash
+npm run package   # builds and writes meet-live-translator.zip
 ```
 
-The `StreamingSTTProvider` and `TranslationProvider` interfaces
-(`src/services/stt/types.ts`, `src/services/translation/types.ts`) are
-designed so you can swap in a backend-proxied implementation without
-touching `offscreen.ts`, the popup, or the overlay.
+Store listing text and permission justifications are in
+[docs/store-listing.md](docs/store-listing.md).
 
 ## Swapping providers
 
@@ -100,8 +96,8 @@ touching `offscreen.ts`, the popup, or the overlay.
 
 ## MVP limitations
 
-English → Vietnamese only, no speaker diarization, no transcript history or
-recording, no auth/database, one Meet tab at a time. Google Meet's own
+English → Vietnamese only, no speaker diarization, no audio recording,
+one translating tab at a time. Google Meet's own
 caption DOM is never used as a transcription source.
 
 ## Latency review

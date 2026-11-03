@@ -1,5 +1,6 @@
 import { createLogger } from "@/shared/logger";
 import { isExtensionMessage, MessageType, type ExtensionMessage } from "@/shared/messages";
+import { getProviderSettings } from "@/shared/settings";
 import type { TranslationStatus } from "@/shared/types";
 import { askAboutMeeting } from "@/services/ai/meeting-assistant";
 import { summarizeMeeting } from "@/services/ai/meeting-summary";
@@ -91,6 +92,16 @@ async function startTranslation(context?: string): Promise<void> {
 
   await setStatus("starting");
 
+  const settings = await getProviderSettings();
+  if (!settings.deepgramApiKey.trim()) {
+    await setStatus("error", "Add your Deepgram API key in Settings first.");
+    return;
+  }
+  if (settings.translationProvider === "openai" && !settings.openAiApiKey.trim()) {
+    await setStatus("error", "Add your OpenAI API key in Settings, or switch to the free translation provider.");
+    return;
+  }
+
   const tab = await findTargetTab();
   if (!tab?.id) {
     await setStatus("error", "Open a Google Meet call or a YouTube tab first, then click Start.");
@@ -114,7 +125,7 @@ async function startTranslation(context?: string): Promise<void> {
 
     const response = await chrome.runtime.sendMessage({
       type: MessageType.INIT_CAPTURE,
-      payload: { streamId, tabId: tab.id, context },
+      payload: { streamId, tabId: tab.id, context, settings },
     } satisfies ExtensionMessage);
 
     if (!response?.ok) {
@@ -191,7 +202,8 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       return undefined;
 
     case MessageType.ASK_AI:
-      askAboutMeeting(message.payload.question, message.payload.transcriptContext)
+      getProviderSettings()
+        .then((s) => askAboutMeeting(message.payload.question, message.payload.transcriptContext, s.openAiApiKey))
         .then((answer) => sendResponse({ ok: true, answer }))
         .catch((err: unknown) => {
           log.error("Ask AI failed:", err);
@@ -200,7 +212,8 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       return true;
 
     case MessageType.SUMMARIZE_MEETING:
-      summarizeMeeting(message.payload.transcript)
+      getProviderSettings()
+        .then((s) => summarizeMeeting(message.payload.transcript, s.openAiApiKey))
         .then((summary) => sendResponse({ ok: true, summary }))
         .catch((err: unknown) => {
           log.error("Summarize meeting failed:", err);
