@@ -1,124 +1,147 @@
 # Meet Live Translator (EN → VI)
 
-Chrome extension (Manifest V3) that captures **Google Meet tab audio** (not
-your microphone) and shows a live Vietnamese caption overlay translated from
-streaming English speech-to-text, targeting ~0.5–1.5s perceived latency.
+A Chrome extension that shows **live Vietnamese captions** for English speech in
+**Google Meet** and **YouTube** tabs, and keeps **notes** of every meeting
+(transcript, AI summary, Markdown export).
+
+- Live captions that update as people speak (about 0.5–1.5 s behind the audio)
+- Optional English source line under each caption
+- **Notes**: each session is saved with a timestamped transcript
+- **AI summary**: key points, decisions, action items, in the transcript's language
+- **Ask AI**: ask questions about the meeting in progress
+- Download any meeting as a `.md` file
+- Captures tab audio only, never your microphone. Your keys stay in your browser.
+
+## Quick start (run it locally)
+
+You need Node.js 18+ and Google Chrome.
+
+```bash
+git clone https://github.com/huypham-dev/meeting-translator.git
+cd meeting-translator
+npm install
+npm run build
+```
+
+Load the build into Chrome:
+
+1. Open `chrome://extensions`
+2. Turn on **Developer mode** (top right)
+3. Click **Load unpacked** and select the `dist/` folder
+4. Pin the extension, click its icon, then **Settings (API keys)** and add your keys (see below)
+
+## API keys
+
+The extension has no backend. You bring your own keys, and they are stored only
+in your browser (`chrome.storage.local`). Nothing is compiled into the build.
+
+| Key | Required | What it is used for | Where to get it |
+|---|---|---|---|
+| **Deepgram** | Yes | Speech-to-text (streaming) | [console.deepgram.com](https://console.deepgram.com/) → API Keys → Create. New accounts get free credit. |
+| **OpenAI** | No | OpenAI translation, Ask AI, meeting summaries | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) → Create new secret key. Needs billing enabled. |
+
+Minimal setup, no OpenAI: add the Deepgram key and keep the translation
+provider on **MyMemory (free, no key)**. Captions and Notes transcripts work.
+The Generate summary button and Ask AI need an OpenAI key.
+
+For better translation quality, add an OpenAI key and switch the provider to
+**OpenAI** in Settings.
+
+## Using it
+
+1. Join a Google Meet call, or open a YouTube video.
+2. Click the extension icon, optionally add context (names, topic, terms), then **Start Translation**.
+3. Vietnamese captions appear near the bottom of the page. Use the popup switch to also show the English line.
+4. Click the round **AI** button on the page:
+   - **Lịch sử**: Vietnamese translation of the current meeting
+   - **Hỏi AI**: ask questions about what was just said
+   - **Notes**: saved meetings. Open one to read the transcript, **Generate summary**, rename, download as `.md`, or delete it
+5. Click **Stop** to end the meeting. You can Start again without reloading the page.
+
+Each Start → Stop is one meeting. Notes keep only the English that was heard,
+not the translation, and stay on your device until you delete them.
+
+## Privacy
+
+No server of ours is involved. While you translate, tab audio goes to Deepgram,
+and caption text goes to your chosen translation provider. Summaries and Ask AI
+send transcript text to OpenAI. Details in [PRIVACY.md](PRIVACY.md).
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| "Add your Deepgram API key in Settings first." | Open Settings from the popup and save a Deepgram key. |
+| "Open a Google Meet call or a YouTube tab first" | Switch to a Meet or YouTube tab, then click Start. |
+| No captions, status says Listening | Make sure someone is speaking and the tab is not muted. Only that tab's audio is captured. |
+| Summary or Ask AI says it needs an OpenAI key | Add an OpenAI key in Settings. |
+| Changes not showing after a rebuild | Reload the extension in `chrome://extensions` and refresh the Meet tab. |
+
+## Development
+
+```bash
+npm run dev         # vite build --watch (no HMR: reload the extension after each rebuild)
+npm run typecheck   # tsc --noEmit
+npm run build       # production build into dist/
+npm run package     # build and zip dist/ as meet-live-translator.zip for the Chrome Web Store
+```
+
+There is no test runner or linter configured. Store listing text and permission
+justifications are in [docs/store-listing.md](docs/store-listing.md).
+
+### How it works
 
 ```
-Google Meet Tab
+Meet / YouTube tab
   → chrome.tabCapture
-  → Offscreen Document
-  → AudioWorklet (resample to 16kHz mono PCM16, ~100ms chunks)
+  → Offscreen document (AudioContext + AudioWorklet, 16 kHz mono PCM16, ~100 ms chunks)
   → WebSocket → Deepgram streaming STT (interim + final transcripts)
-  → Incremental translator (debounced, versioned, EN → VI)
+  → IncrementalTranslator (debounced, versioned, EN → VI)
   → background service worker
   → content script
-  → React caption overlay (Shadow DOM) inside Google Meet
+  → React overlay and sidebar (Shadow DOM)
 ```
-
-## Project structure
 
 ```
 src/
-├── background/service-worker.ts   Orchestrates start/stop, offscreen doc, tab discovery, messaging
-├── offscreen/
-│   ├── offscreen.html / offscreen.ts   Capture pipeline: MediaStream, AudioContext, STT, translation
-│   └── audio-worklet.ts                Constants shared with the worklet processor
+├── background/service-worker.ts   Start/stop, offscreen doc, tab discovery, message relay, AI calls
+├── offscreen/                     Audio capture pipeline: MediaStream, AudioContext, STT, translation
 ├── content/
-│   ├── content-script.tsx    Mounts the overlay into a Shadow DOM on meet.google.com
-│   ├── CaptionOverlay.tsx    Caption state + rendering
-│   └── styles.css
-├── popup/                    Start/Stop UI + status
+│   ├── CaptionOverlay.tsx         Live captions
+│   ├── AskAiSidebar.tsx           Sidebar with Lịch sử / Hỏi AI / Notes tabs
+│   ├── NotesTab.tsx, notes-store.ts   Saved meetings (chrome.storage.local)
+│   └── transcript-store.ts        In-memory rolling transcript used as Ask AI context
+├── popup/                         Start/Stop, context, source-line toggle
+├── options/                       Settings page for API keys
 ├── services/
-│   ├── stt/                  StreamingSTTProvider interface + Deepgram implementation
-│   └── translation/          TranslationProvider interface + providers + IncrementalTranslator
-└── shared/                   Typed messages, shared types, logger
+│   ├── stt/                       StreamingSTTProvider + Deepgram
+│   ├── translation/               TranslationProvider, providers, IncrementalTranslator
+│   └── ai/                        Ask AI (gpt-4o-mini) and meeting summary (gpt-4.1)
+└── shared/                        Typed messages, shared types, settings, logger
 
 public/worklets/audio-processor.js   AudioWorkletProcessor (plain JS, loaded at runtime)
 manifest.config.ts                   MV3 manifest (via @crxjs/vite-plugin)
 ```
 
-## Setup
+Swapping providers: implement `StreamingSTTProvider` (`src/services/stt/types.ts`)
+or `TranslationProvider` (`src/services/translation/types.ts`) and register it in
+`createTranslationProvider` (`src/services/translation/providers.ts`).
 
-```bash
-npm install
-npm run build
-```
+### Latency
 
-Then load it in Chrome:
-
-1. Go to `chrome://extensions`
-2. Enable **Developer mode** (top right)
-3. Click **Load unpacked**
-4. Select the generated `dist/` folder
-5. Click the extension icon -> **Settings (API keys)** and enter your Deepgram key
-
-For iterative development, `npm run dev` runs `vite build --watch`; reload the
-extension (and refresh the Meet tab) after each rebuild.
-
-## Using it
-
-1. Join a Google Meet call (or open a YouTube video).
-2. Click the extension icon -> **Start Translation**.
-3. Vietnamese captions appear near the bottom of the page as people speak.
-   Click **Stop** to end the session. You can Start/Stop repeatedly without
-   reloading the page.
-4. Open the **AI** button -> **Notes** tab to see saved meetings, generate an
-   AI summary, rename, delete, or download a meeting as Markdown.
-
-## Settings
-
-API keys are entered by the user on the extension's Settings page and stored
-in `chrome.storage.local`. Nothing is bundled into the extension, so a build
-contains no secrets.
-
-| Setting | Purpose |
+| Stage | Typical cost |
 |---|---|
-| Deepgram API key (required) | Streaming speech-to-text |
-| Translation provider | `MyMemory` (free, no key) or `OpenAI` |
-| OpenAI API key (optional) | OpenAI translation, Ask AI, and meeting summaries |
+| AudioWorklet buffering | ~100 ms (deliberate chunk size) |
+| Deepgram interim transcript | ~150–400 ms from speech onset |
+| Translation debounce | 150 ms for interim, 0 ms for final |
+| Translation API round trip | ~100–500 ms (MyMemory free tier is the largest variable) |
+| Message relay and overlay update | under 30 ms |
 
-See [PRIVACY.md](PRIVACY.md) for what data leaves the browser.
+Expect about 400 ms–1.2 s end to end. A faster translation provider is the
+single biggest improvement.
 
-## Packaging for the Chrome Web Store
+## Limitations
 
-```bash
-npm run package   # builds and writes meet-live-translator.zip
-```
-
-Store listing text and permission justifications are in
-[docs/store-listing.md](docs/store-listing.md).
-
-## Swapping providers
-
-- **STT**: implement `StreamingSTTProvider` (`src/services/stt/types.ts`) and use it in `offscreen.ts` instead of `DeepgramSTTProvider`.
-- **Translation**: implement `TranslationProvider` (`src/services/translation/types.ts`) and register it in `createTranslationProvider` (`src/services/translation/providers.ts`). `OpenAITranslationProvider` is included as a higher-quality option; DeepL/Google Translate/local models follow the same shape.
-
-## MVP limitations
-
-English → Vietnamese only, no speaker diarization, no audio recording,
-one translating tab at a time. Google Meet's own
-caption DOM is never used as a transcription source.
-
-## Latency review
-
-See below for a breakdown of where time is spent in the pipeline and what
-was done to keep each stage under ~200ms.
-
-| Stage | Typical cost | Notes |
-|---|---|---|
-| AudioWorklet buffering | ~100ms | Chunk size is the dominant, deliberate latency source (trade-off vs. STT context); could drop to 50ms chunk size for ~50ms less latency at the cost of more WebSocket frames. |
-| Tab→Worklet→WebSocket handoff | <5ms | Worklet posts transferable `ArrayBuffer`s (zero-copy) directly off the audio render thread; no MediaRecorder/blob buffering. |
-| Deepgram interim transcript | ~150–400ms from speech onset | Server-side STT latency (`endpointing: 300`, `interim_results: true`, `model: nova-2`); not controllable client-side beyond provider/model choice. |
-| Translation debounce | 150ms (interim) / 0ms (final) | Intentional coalescing so bursts of interim transcripts don't fire one translation request each; finals bypass the debounce. |
-| Translation API round trip | ~100–500ms (MyMemory, free tier) | **Largest optimizable risk.** MyMemory is a plain REST call with no streaming and no SLA. For production, prefer a low-latency provider (DeepL API, or a small dedicated translation model) and consider sentence-level speculative decoding. This is called out explicitly in code comments (`providers.ts`) as the swappable seam. |
-| Message relay (offscreen → background → content script) | <10ms | Local `chrome.runtime`/`chrome.tabs` messaging, no network. |
-| React overlay update | <16ms | Single state update, CSS transition only (no layout thrash); stale translations are dropped via the `translationVersion` counter so a slow response never overwrites a newer caption. |
-
-**Net assessment**: with Deepgram + MyMemory, expect roughly 400ms–1.2s
-end-to-end for interim captions, which is within the target range but close
-to the upper bound almost entirely because of the free translation API. The
-single highest-leverage change for latency is swapping `mymemory` for a
-paid, low-latency translation provider (OpenAI streaming, DeepL, or a
-self-hosted model) — everything else in the pipeline (worklet chunking,
-messaging, debounce, rendering) is already sub-200ms per stage.
+English → Vietnamese only. No speaker identification, no audio recording, one
+translating tab at a time. Google Meet's own caption DOM is never used as a
+transcript source.
