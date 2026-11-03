@@ -19,6 +19,7 @@ const hint: CSSProperties = { fontSize: 12, color: "#9a9a9e", margin: "4px 0 0",
 export function Options() {
   const [settings, setSettings] = useState<ProviderSettings | null>(null);
   const [saved, setSaved] = useState(false);
+  const [micError, setMicError] = useState("");
 
   useEffect(() => {
     getProviderSettings().then(setSettings);
@@ -30,8 +31,6 @@ export function Options() {
     setSaved(false);
     setSettings({ ...settings, ...patch });
   };
-
-  const [micError, setMicError] = useState("");
 
   // Offscreen documents cannot show a permission prompt, so ask here once.
   const toggleMic = async (enabled: boolean) => {
