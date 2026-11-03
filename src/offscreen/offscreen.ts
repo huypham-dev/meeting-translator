@@ -18,6 +18,8 @@ let mediaStream: MediaStream | null = null;
 let audioContext: AudioContext | null = null;
 let workletNode: AudioWorkletNode | null = null;
 let sourceNode: MediaStreamAudioSourceNode | null = null;
+let micStream: MediaStream | null = null;
+let micSourceNode: MediaStreamAudioSourceNode | null = null;
 let sttProvider: StreamingSTTProvider | null = null;
 let translator: IncrementalTranslator | null = null;
 let stopping = false;
@@ -80,6 +82,21 @@ async function startCapture(streamId: string, _tabId: number, settings: Provider
     };
 
     sourceNode.connect(workletNode);
+
+    // The user's own voice is not in the tab audio. Feed the mic into the same
+    // worklet input (inputs are summed) but never to the speakers, to avoid echo.
+    if (settings.includeMic) {
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+          video: false,
+        });
+        micSourceNode = audioContext.createMediaStreamSource(micStream);
+        micSourceNode.connect(workletNode);
+      } catch (err) {
+        log.warn("Microphone unavailable, continuing with tab audio only", err);
+      }
+    }
   } catch (err) {
     log.error("AudioContext/AudioWorklet setup failed", err);
     reportStatus("error", "Audio processing pipeline failed to start");
@@ -154,6 +171,20 @@ async function stopCapture(): Promise<void> {
       /* noop */
     }
     workletNode = null;
+  }
+
+  if (micSourceNode) {
+    try {
+      micSourceNode.disconnect();
+    } catch {
+      /* noop */
+    }
+    micSourceNode = null;
+  }
+
+  if (micStream) {
+    micStream.getTracks().forEach((track) => track.stop());
+    micStream = null;
   }
 
   if (sourceNode) {

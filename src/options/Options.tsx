@@ -31,6 +31,23 @@ export function Options() {
     setSettings({ ...settings, ...patch });
   };
 
+  const [micError, setMicError] = useState("");
+
+  // Offscreen documents cannot show a permission prompt, so ask here once.
+  const toggleMic = async (enabled: boolean) => {
+    setMicError("");
+    if (enabled) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      } catch {
+        setMicError("Microphone permission was denied. Allow it for this extension in Chrome site settings.");
+        return;
+      }
+    }
+    update({ includeMic: enabled });
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     saveProviderSettings({
@@ -97,6 +114,22 @@ export function Options() {
           Needed for the OpenAI translation provider, Ask AI, and meeting summaries. Transcript text is sent to
           OpenAI only when you use those features.
         </p>
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <label style={{ ...label, display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={settings.includeMic}
+            onChange={(e) => void toggleMic(e.target.checked)}
+          />
+          Include my microphone
+        </label>
+        <p style={hint}>
+          Adds your own voice to the transcript and notes. It is mixed into the same Deepgram stream, so speakers are
+          not labelled. Use headphones to avoid the mic re-capturing the meeting audio.
+        </p>
+        {micError && <p style={{ ...hint, color: "#ff453a" }}>{micError}</p>}
       </div>
 
       <button

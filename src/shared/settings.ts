@@ -3,6 +3,8 @@ export interface ProviderSettings {
   deepgramApiKey: string;
   openAiApiKey: string;
   translationProvider: "mymemory" | "openai";
+  /** Mix the user's own microphone into the audio sent to STT. */
+  includeMic: boolean;
 }
 
 const SETTINGS_STORAGE_KEY = "providerSettings";
@@ -11,6 +13,7 @@ const DEFAULTS: ProviderSettings = {
   deepgramApiKey: "",
   openAiApiKey: "",
   translationProvider: "mymemory",
+  includeMic: false,
 };
 
 export async function getProviderSettings(): Promise<ProviderSettings> {
