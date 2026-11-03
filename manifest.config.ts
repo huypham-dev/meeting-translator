@@ -25,14 +25,15 @@ export default defineManifest({
   },
   content_scripts: [
     {
-      matches: ["https://meet.google.com/*"],
+      matches: ["https://meet.google.com/*", "https://www.youtube.com/*"],
       js: ["src/content/content-script.tsx"],
       run_at: "document_idle",
     },
   ],
-  permissions: ["tabCapture", "offscreen", "activeTab", "storage"],
+  permissions: ["tabCapture", "offscreen", "activeTab", "storage", "unlimitedStorage"],
   host_permissions: [
     "https://meet.google.com/*",
+    "https://www.youtube.com/*",
     "https://api.deepgram.com/*",
     "wss://api.deepgram.com/*",
     "https://api.mymemory.translated.net/*",

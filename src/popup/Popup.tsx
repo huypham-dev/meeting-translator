@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { isExtensionMessage, MessageType } from "@/shared/messages";
-import type { TranslationStatus } from "@/shared/types";
+import { SHOW_SOURCE_STORAGE_KEY, type TranslationStatus } from "@/shared/types";
 
 const STATUS_LABEL: Record<TranslationStatus, string> = {
   idle: "Ready",
@@ -18,16 +18,30 @@ const STATUS_COLOR: Record<TranslationStatus, string> = {
   stopping: "#9a9a9e",
 };
 
+const CONTEXT_STORAGE_KEY = "translationContext";
+
 export function Popup() {
   const [status, setStatus] = useState<TranslationStatus>("idle");
   const [message, setMessage] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const [context, setContext] = useState("");
+  const [showSource, setShowSource] = useState(false);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: MessageType.GET_STATUS }).then((res) => {
       if (res?.status) {
         setStatus(res.status);
         setMessage(res.message);
+      }
+    });
+
+    chrome.storage.local.get([SHOW_SOURCE_STORAGE_KEY]).then((stored) => {
+      setShowSource(stored[SHOW_SOURCE_STORAGE_KEY] === true);
+    });
+
+    chrome.storage.local.get([CONTEXT_STORAGE_KEY]).then((stored) => {
+      if (typeof stored[CONTEXT_STORAGE_KEY] === "string") {
+        setContext(stored[CONTEXT_STORAGE_KEY]);
       }
     });
 
@@ -46,10 +60,29 @@ export function Popup() {
 
   const isListening = status === "listening" || status === "starting";
 
+  const handleContextChange = (value: string) => {
+    setContext(value);
+    chrome.storage.local.set({ [CONTEXT_STORAGE_KEY]: value });
+  };
+
+  const handleShowSourceChange = (value: boolean) => {
+    setShowSource(value);
+    chrome.storage.local.set({ [SHOW_SOURCE_STORAGE_KEY]: value });
+  };
+
   const handleClick = () => {
     setBusy(true);
-    const type = isListening ? MessageType.STOP_TRANSLATION : MessageType.START_TRANSLATION;
-    chrome.runtime.sendMessage({ type }).finally(() => setBusy(false));
+    if (isListening) {
+      chrome.runtime.sendMessage({ type: MessageType.STOP_TRANSLATION }).finally(() => setBusy(false));
+    } else {
+      const trimmed = context.trim();
+      chrome.runtime
+        .sendMessage({
+          type: MessageType.START_TRANSLATION,
+          payload: trimmed ? { context: trimmed } : undefined,
+        })
+        .finally(() => setBusy(false));
+    }
   };
 
   return (
@@ -69,6 +102,49 @@ export function Popup() {
       >
         <span>{STATUS_LABEL[status]}</span>
       </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontSize: 11, color: "#9a9a9e", display: "block", marginBottom: 4 }}>
+          Context / thuật ngữ (tuỳ chọn)
+        </label>
+        <textarea
+          value={context}
+          onChange={(e) => handleContextChange(e.target.value)}
+          disabled={isListening}
+          placeholder="VD: cuộc họp sprint planning, tên: An, Bình; dự án: Falcon"
+          rows={3}
+          style={{
+            width: "100%",
+            resize: "vertical",
+            fontSize: 12,
+            fontFamily: "inherit",
+            padding: "6px 8px",
+            borderRadius: 8,
+            border: "1px solid #3a3a3e",
+            background: isListening ? "#1c1c1e" : "#2c2c2e",
+            color: "#fff",
+            boxSizing: "border-box",
+          }}
+        />
+      </div>
+
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontSize: 13,
+          marginBottom: 14,
+          cursor: "pointer",
+        }}
+      >
+        <span>Hiện tiếng Anh gốc</span>
+        <input
+          type="checkbox"
+          checked={showSource}
+          onChange={(e) => handleShowSourceChange(e.target.checked)}
+        />
+      </label>
 
       {status === "error" && message && (
         <div
