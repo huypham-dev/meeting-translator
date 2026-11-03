@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { createLogger } from "@/shared/logger";
 import { CaptionOverlay } from "./CaptionOverlay";
+import { AskAiSidebar } from "./AskAiSidebar";
 import styles from "./styles.css?inline";
 
 const log = createLogger("Content");
@@ -23,7 +24,12 @@ function mount() {
   const mountPoint = document.createElement("div");
   shadowRoot.appendChild(mountPoint);
 
-  createRoot(mountPoint).render(<CaptionOverlay />);
+  createRoot(mountPoint).render(
+    <>
+      <CaptionOverlay />
+      <AskAiSidebar />
+    </>
+  );
 
   log.log("Caption overlay mounted");
 }

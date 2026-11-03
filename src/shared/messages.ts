@@ -21,19 +21,29 @@ export const MessageType = {
   TRANSCRIPT_UPDATE: "TRANSCRIPT_UPDATE",
   TRANSLATION_UPDATE: "TRANSLATION_UPDATE",
   CLEAR_CAPTION: "CLEAR_CAPTION",
+
+  // content script -> background: "Ask AI about current meeting" sidebar
+  ASK_AI: "ASK_AI",
+  SUMMARIZE_MEETING: "SUMMARIZE_MEETING",
+
+  // background -> content script: a new translation session just began
+  MEETING_STARTED: "MEETING_STARTED",
 } as const;
 
 export type ExtensionMessage =
-  | { type: typeof MessageType.START_TRANSLATION }
+  | { type: typeof MessageType.START_TRANSLATION; payload?: { context?: string } }
   | { type: typeof MessageType.STOP_TRANSLATION }
   | { type: typeof MessageType.GET_STATUS }
-  | { type: typeof MessageType.INIT_CAPTURE; payload: { streamId: string; tabId: number } }
+  | { type: typeof MessageType.INIT_CAPTURE; payload: { streamId: string; tabId: number; context?: string } }
   | { type: typeof MessageType.STOP_CAPTURE }
   | { type: typeof MessageType.OFFSCREEN_READY }
   | { type: typeof MessageType.STATUS_UPDATE; payload: StatusUpdate }
   | { type: typeof MessageType.TRANSCRIPT_UPDATE; payload: TranscriptResult }
   | { type: typeof MessageType.TRANSLATION_UPDATE; payload: CaptionState }
-  | { type: typeof MessageType.CLEAR_CAPTION };
+  | { type: typeof MessageType.CLEAR_CAPTION }
+  | { type: typeof MessageType.ASK_AI; payload: { question: string; transcriptContext: string } }
+  | { type: typeof MessageType.SUMMARIZE_MEETING; payload: { transcript: string } }
+  | { type: typeof MessageType.MEETING_STARTED };
 
 export function isExtensionMessage(msg: unknown): msg is ExtensionMessage {
   return (

@@ -31,7 +31,7 @@ function reportStatus(status: "starting" | "listening" | "error", message?: stri
   sendToBackground({ type: MessageType.STATUS_UPDATE, payload: { status, message } });
 }
 
-async function startCapture(streamId: string, _tabId: number): Promise<void> {
+async function startCapture(streamId: string, _tabId: number, context?: string): Promise<void> {
   if (audioContext) {
     log.warn("Capture already active, stopping previous session first");
     await stopCapture();
@@ -98,6 +98,7 @@ async function startCapture(streamId: string, _tabId: number): Promise<void> {
       (import.meta.env.VITE_TRANSLATION_PROVIDER as "mymemory" | "openai" | undefined) ?? "mymemory";
     const provider = createTranslationProvider(translationProviderName, {
       openAiApiKey: import.meta.env.VITE_OPENAI_API_KEY as string | undefined,
+      context,
     });
     translator = new IncrementalTranslator(provider, SOURCE_LANGUAGE, TARGET_LANGUAGE);
 
@@ -187,7 +188,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   if (!isExtensionMessage(message)) return undefined;
 
   if (message.type === MessageType.INIT_CAPTURE) {
-    startCapture(message.payload.streamId, message.payload.tabId)
+    startCapture(message.payload.streamId, message.payload.tabId, message.payload.context)
       .then(() => sendResponse({ ok: true }))
       .catch((err: unknown) => sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }));
     return true;
