@@ -107,10 +107,10 @@ export function AskAiSidebar() {
 
           <div className="askai-tabs">
             <button className={`askai-tab${tab === "history" ? " on" : ""}`} onClick={() => setTab("history")}>
-              Lịch sử
+              History
             </button>
             <button className={`askai-tab${tab === "ask" ? " on" : ""}`} onClick={() => setTab("ask")}>
-              Hỏi AI
+              Ask AI
             </button>
             <button className={`askai-tab${tab === "notes" ? " on" : ""}`} onClick={() => setTab("notes")}>
               Notes
@@ -134,7 +134,7 @@ export function AskAiSidebar() {
           <div className="askai-history" ref={historyRef}>
             {tab === "history" ? (
               transcript.length === 0 ? (
-                <div className="askai-empty">Chưa có nội dung nào được dịch.</div>
+                <div className="askai-empty">Nothing translated yet.</div>
               ) : (
                 transcript.map((e) => (
                   <div key={e.timestamp} className="askai-transcript-row">

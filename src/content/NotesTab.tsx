@@ -70,7 +70,7 @@ function MeetingDetail({ meeting, onBack }: { meeting: Meeting; onBack: () => vo
     <div className="notes-detail">
       <div className="notes-head">
         <button className="notes-link" onClick={onBack}>
-          ← Danh sách
+          ← List
         </button>
         {renaming ? (
           <input
@@ -95,14 +95,14 @@ function MeetingDetail({ meeting, onBack }: { meeting: Meeting; onBack: () => vo
                 setRenaming(true);
               }}
             >
-              Đổi tên
+              Rename
             </button>
           </>
         )}
       </div>
 
       <div className="notes-meta">
-        {meeting.lines.length} câu · {recording ? "đang ghi" : `kết thúc ${formatMeetingDate(meeting.endedAt ?? meeting.startedAt)}`}
+        {meeting.lines.length} lines · {recording ? "recording" : `ended ${formatMeetingDate(meeting.endedAt ?? meeting.startedAt)}`}
       </div>
 
       <div className="notes-subtabs">
@@ -117,7 +117,7 @@ function MeetingDetail({ meeting, onBack }: { meeting: Meeting; onBack: () => vo
       <div className="askai-history">
         {sub === "transcript" ? (
           meeting.lines.length === 0 ? (
-            <div className="askai-empty">Chưa có câu nào được ghi.</div>
+            <div className="askai-empty">No lines recorded yet.</div>
           ) : (
             meeting.lines.map((l, i) => (
               <div key={i} className="askai-transcript-row">
@@ -127,22 +127,22 @@ function MeetingDetail({ meeting, onBack }: { meeting: Meeting; onBack: () => vo
             ))
           )
         ) : generating ? (
-          <div className="askai-empty">Đang tạo summary…</div>
+          <div className="askai-empty">Generating summary…</div>
         ) : error ? (
           <div className="askai-error">{error}</div>
         ) : meeting.summary ? (
           <SummaryView text={meeting.summary.text} />
         ) : (
-          <div className="askai-empty">Chưa có summary. Bấm Generate summary để tạo từ transcript.</div>
+          <div className="askai-empty">No summary yet. Click Generate summary to create one from the transcript.</div>
         )}
       </div>
 
       <div className="notes-foot">
         <button className="askai-send" disabled={generating || meeting.lines.length === 0} onClick={generate}>
-          {meeting.summary ? "Generate lại" : "Generate summary"}
+          {meeting.summary ? "Regenerate" : "Generate summary"}
         </button>
         <button className="notes-btn" onClick={() => setDownloaded(downloadMeeting(meeting))}>
-          Tải .md
+          Download .md
         </button>
         {!recording &&
           (confirmDelete ? (
@@ -153,7 +153,7 @@ function MeetingDetail({ meeting, onBack }: { meeting: Meeting; onBack: () => vo
                 onBack();
               }}
             >
-              Xác nhận xóa
+              Confirm delete
             </button>
           ) : (
             <button className="notes-btn notes-danger" onClick={() => setConfirmDelete(true)}>
@@ -161,7 +161,7 @@ function MeetingDetail({ meeting, onBack }: { meeting: Meeting; onBack: () => vo
             </button>
           ))}
       </div>
-      {downloaded && <div className="notes-meta">Đã tải {downloaded}</div>}
+      {downloaded && <div className="notes-meta">Downloaded {downloaded}</div>}
     </div>
   );
 }
@@ -178,14 +178,14 @@ export function NotesTab() {
   const recordingId = getRecordingMeetingId();
   return (
     <div className="askai-history">
-      {meetings.length === 0 && <div className="askai-empty">Chưa có meeting nào. Bấm Start để bắt đầu ghi.</div>}
+      {meetings.length === 0 && <div className="askai-empty">No meetings yet. Click Start to begin recording.</div>}
       {meetings.map((m) => (
         <button key={m.id} className="notes-row" onClick={() => setSelectedId(m.id)}>
           <span className="notes-row-text">
             <b>{meetingLabel(m)}</b>
-            <small>{m.lines.length} câu</small>
+            <small>{m.lines.length} lines</small>
           </span>
-          {m.id === recordingId && <span className="notes-live">Đang ghi</span>}
+          {m.id === recordingId && <span className="notes-live">Recording</span>}
         </button>
       ))}
     </div>

@@ -105,13 +105,13 @@ export function Popup() {
 
       <div style={{ marginBottom: 14 }}>
         <label style={{ fontSize: 11, color: "#9a9a9e", display: "block", marginBottom: 4 }}>
-          Context / thuật ngữ (tuỳ chọn)
+          Context / terminology (optional)
         </label>
         <textarea
           value={context}
           onChange={(e) => handleContextChange(e.target.value)}
           disabled={isListening}
-          placeholder="VD: cuộc họp sprint planning, tên: An, Bình; dự án: Falcon"
+          placeholder="e.g. sprint planning meeting, names: An, Binh; project: Falcon"
           rows={3}
           style={{
             width: "100%",
@@ -138,7 +138,7 @@ export function Popup() {
           cursor: "pointer",
         }}
       >
-        <span>Hiện tiếng Anh gốc</span>
+        <span>Show original English</span>
         <input
           type="checkbox"
           checked={showSource}
