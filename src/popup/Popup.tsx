@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getProviderSettings, patchProviderSettings } from "@/shared/settings";
 import { isExtensionMessage, MessageType } from "@/shared/messages";
 import { SHOW_SOURCE_STORAGE_KEY, type TranslationStatus } from "@/shared/types";
 
@@ -26,6 +27,9 @@ export function Popup() {
   const [busy, setBusy] = useState(false);
   const [context, setContext] = useState("");
   const [showSource, setShowSource] = useState(false);
+  const [translateEnabled, setTranslateEnabled] = useState(true);
+  const [includeMic, setIncludeMic] = useState(false);
+  const [micHint, setMicHint] = useState("");
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: MessageType.GET_STATUS }).then((res) => {
@@ -33,6 +37,11 @@ export function Popup() {
         setStatus(res.status);
         setMessage(res.message);
       }
+    });
+
+    getProviderSettings().then((s) => {
+      setTranslateEnabled(s.translateEnabled);
+      setIncludeMic(s.includeMic);
     });
 
     chrome.storage.local.get([SHOW_SOURCE_STORAGE_KEY]).then((stored) => {
@@ -68,6 +77,25 @@ export function Popup() {
   const handleShowSourceChange = (value: boolean) => {
     setShowSource(value);
     chrome.storage.local.set({ [SHOW_SOURCE_STORAGE_KEY]: value });
+  };
+
+  const handleTranslateChange = (value: boolean) => {
+    setTranslateEnabled(value);
+    void patchProviderSettings({ translateEnabled: value });
+  };
+
+  const handleMicChange = async (value: boolean) => {
+    setMicHint("");
+    if (value) {
+      // A permission prompt would close this popup, so it is granted once on the Settings page.
+      const perm = await navigator.permissions.query({ name: "microphone" as PermissionName }).catch(() => null);
+      if (perm?.state !== "granted") {
+        setMicHint("Allow the microphone once in Settings, then enable it here.");
+        return;
+      }
+    }
+    setIncludeMic(value);
+    void patchProviderSettings({ includeMic: value });
   };
 
   const handleClick = () => {
@@ -128,23 +156,33 @@ export function Popup() {
         />
       </div>
 
-      <label
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontSize: 13,
-          marginBottom: 14,
-          cursor: "pointer",
-        }}
-      >
-        <span>Show original English</span>
-        <input
-          type="checkbox"
-          checked={showSource}
-          onChange={(e) => handleShowSourceChange(e.target.checked)}
-        />
-      </label>
+      {[
+        { text: "Translate", checked: translateEnabled, onChange: handleTranslateChange, disabled: isListening },
+        { text: "Show original English", checked: showSource, onChange: handleShowSourceChange, disabled: false },
+        { text: "Include my microphone", checked: includeMic, onChange: handleMicChange, disabled: isListening },
+      ].map((row) => (
+        <label
+          key={row.text}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontSize: 13,
+            marginBottom: 14,
+            cursor: row.disabled ? "default" : "pointer",
+            opacity: row.disabled ? 0.6 : 1,
+          }}
+        >
+          <span>{row.text}</span>
+          <input
+            type="checkbox"
+            checked={row.checked}
+            disabled={row.disabled}
+            onChange={(e) => void row.onChange(e.target.checked)}
+          />
+        </label>
+      ))}
+      {micHint && <div style={{ fontSize: 12, color: "#f5c518", marginBottom: 14 }}>{micHint}</div>}
 
       {status === "error" && message && (
         <div
@@ -175,7 +213,7 @@ export function Popup() {
           cursor: "pointer",
         }}
       >
-        Settings (API keys)
+        Settings (API keys, microphone access)
       </button>
 
       <button
@@ -194,7 +232,7 @@ export function Popup() {
           opacity: busy || status === "stopping" ? 0.6 : 1,
         }}
       >
-        {isListening ? "Stop" : "Start Translation"}
+        {isListening ? "Stop" : translateEnabled ? "Start Translation" : "Start Notes"}
       </button>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
-import { getProviderSettings, saveProviderSettings, type ProviderSettings } from "@/shared/settings";
+import { getProviderSettings, patchProviderSettings, type ProviderSettings } from "@/shared/settings";
 
 const field: CSSProperties = {
   width: "100%",
@@ -45,14 +45,15 @@ export function Options() {
       }
     }
     update({ includeMic: enabled });
+    void patchProviderSettings({ includeMic: enabled });
   };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    saveProviderSettings({
-      ...settings,
+    patchProviderSettings({
       deepgramApiKey: settings.deepgramApiKey.trim(),
       openAiApiKey: settings.openAiApiKey.trim(),
+      translationProvider: settings.translationProvider,
     }).then(() => setSaved(true));
   };
 

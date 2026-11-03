@@ -34,7 +34,7 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
     const { source, translated, isFinal } = message.payload;
 
     if (isFinal) {
-      if (translated.trim()) entries = [...entries, { source, translated, timestamp: Date.now() }];
+      if (source.trim()) entries = [...entries, { source, translated, timestamp: Date.now() }];
       live = null;
       notify();
     } else {
@@ -54,5 +54,5 @@ export function getRecentTranscriptText(minutes: number): string {
   const cutoff = Date.now() - minutes * 60_000;
   const recent = entries.filter((e) => e.timestamp >= cutoff);
   const withLive = live ? [...recent, live] : recent;
-  return withLive.map((e) => `EN: ${e.source}\nVI: ${e.translated}`).join("\n\n");
+  return withLive.map((e) => (e.translated ? `EN: ${e.source}\nVI: ${e.translated}` : `EN: ${e.source}`)).join("\n\n");
 }

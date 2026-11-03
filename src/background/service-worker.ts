@@ -97,7 +97,7 @@ async function startTranslation(context?: string): Promise<void> {
     await setStatus("error", "Add your Deepgram API key in Settings first.");
     return;
   }
-  if (settings.translationProvider === "openai" && !settings.openAiApiKey.trim()) {
+  if (settings.translateEnabled && settings.translationProvider === "openai" && !settings.openAiApiKey.trim()) {
     await setStatus("error", "Add your OpenAI API key in Settings, or switch to the free translation provider.");
     return;
   }

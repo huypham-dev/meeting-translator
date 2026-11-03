@@ -111,19 +111,30 @@ async function startCapture(streamId: string, _tabId: number, settings: Provider
       language: SOURCE_LANGUAGE,
     });
 
-    const provider = createTranslationProvider(settings.translationProvider, {
-      openAiApiKey: settings.openAiApiKey,
-      context,
-    });
-    translator = new IncrementalTranslator(provider, SOURCE_LANGUAGE, TARGET_LANGUAGE);
+    if (settings.translateEnabled) {
+      const provider = createTranslationProvider(settings.translationProvider, {
+        openAiApiKey: settings.openAiApiKey,
+        context,
+      });
+      translator = new IncrementalTranslator(provider, SOURCE_LANGUAGE, TARGET_LANGUAGE);
 
-    translator.onUpdate((state: CaptionState) => {
-      sendToBackground({ type: MessageType.TRANSLATION_UPDATE, payload: state });
-    });
+      translator.onUpdate((state: CaptionState) => {
+        sendToBackground({ type: MessageType.TRANSLATION_UPDATE, payload: state });
+      });
+    }
 
     sttProvider.onTranscript((result) => {
       sendToBackground({ type: MessageType.TRANSCRIPT_UPDATE, payload: result });
-      translator?.update(result.text, result.isFinal);
+      if (translator) {
+        translator.update(result.text, result.isFinal);
+      } else if (result.text.trim()) {
+        // Notes-only: forward the source text with no translation. The overlay skips
+        // empty translations; notes and Ask AI only need the source.
+        sendToBackground({
+          type: MessageType.TRANSLATION_UPDATE,
+          payload: { source: result.text.trim(), translated: "", isFinal: result.isFinal },
+        });
+      }
     });
 
     sttProvider.onError((error) => {
