@@ -283,6 +283,16 @@
   flex: none;
 }
 
+.notes-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+  font-size: 13px;
+  padding: 2px 2px 6px;
+  cursor: pointer;
+}
+
 .notes-row {
   display: flex;
   align-items: center;

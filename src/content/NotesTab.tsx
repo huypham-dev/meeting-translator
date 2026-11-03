@@ -7,8 +7,10 @@ import {
   formatMeetingDate,
   getMeetings,
   getRecordingMeetingId,
+  isRecordingEnabled,
   meetingLabel,
   renameMeeting,
+  setRecordingEnabled,
   setMeetingSummary,
   subscribeNotes,
   transcriptText,
@@ -176,9 +178,18 @@ export function NotesTab() {
   if (selected) return <MeetingDetail key={selected.id} meeting={selected} onBack={() => setSelectedId(null)} />;
 
   const recordingId = getRecordingMeetingId();
+  const enabled = isRecordingEnabled();
   return (
     <div className="askai-history">
-      {meetings.length === 0 && <div className="askai-empty">No meetings yet. Click Start to begin recording.</div>}
+      <label className="notes-switch">
+        <input type="checkbox" checked={enabled} onChange={(e) => setRecordingEnabled(e.target.checked)} />
+        Record notes
+      </label>
+      {meetings.length === 0 && (
+        <div className="askai-empty">
+          {enabled ? "No meetings yet. Click Start to begin recording." : "Turn on Record notes, then click Start."}
+        </div>
+      )}
       {meetings.map((m) => (
         <button key={m.id} className="notes-row" onClick={() => setSelectedId(m.id)}>
           <span className="notes-row-text">
