@@ -139,8 +139,9 @@ async function startTranslation(context?: string): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     log.error("startTranslation failed:", message);
-    await setStatus("error", message);
     await stopTranslation();
+    // stopTranslation() ends in "idle", which would wipe the error before the user can read it.
+    await setStatus("error", message);
   }
 }
 
