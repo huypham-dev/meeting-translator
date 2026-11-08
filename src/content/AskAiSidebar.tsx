@@ -11,6 +11,13 @@ interface QuickPrompt {
 
 const DEFAULT_CONTEXT_MINUTES = 8;
 
+/** Context windows offered for typed questions; `Infinity` = the whole meeting. */
+const SCOPE_OPTIONS = [
+  { label: "Last 2 min", minutes: 2 },
+  { label: "Last 8 min", minutes: DEFAULT_CONTEXT_MINUTES },
+  { label: "Whole meeting", minutes: Infinity },
+];
+
 const QUICK_PROMPTS: QuickPrompt[] = [
   { label: "What does he mean?", question: "What does he mean by what was just said?", contextMinutes: DEFAULT_CONTEXT_MINUTES },
   { label: "What am I being asked to do?", question: "What am I being asked to do?", contextMinutes: DEFAULT_CONTEXT_MINUTES },
@@ -44,6 +51,7 @@ export function AskAiSidebar() {
   const [input, setInput] = useState("");
   const [items, setItems] = useState<QaEntry[]>([]);
   const [tab, setTab] = useState<Tab>("history");
+  const [scopeMinutes, setScopeMinutes] = useState(DEFAULT_CONTEXT_MINUTES);
   const [transcript, setTranscript] = useState(getTranscriptEntries);
   const historyRef = useRef<HTMLDivElement>(null);
 
@@ -92,7 +100,7 @@ export function AskAiSidebar() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    ask(input);
+    ask(input, scopeMinutes);
   };
 
   return (
@@ -159,6 +167,20 @@ export function AskAiSidebar() {
           </div>
 
           <form className="askai-form" onSubmit={handleSubmit}>
+            {tab === "ask" && (
+              <select
+                className="askai-scope"
+                value={String(scopeMinutes)}
+                onChange={(e) => setScopeMinutes(Number(e.target.value))}
+                aria-label="Context window for typed questions"
+              >
+                {SCOPE_OPTIONS.map((o) => (
+                  <option key={o.label} value={String(o.minutes)}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            )}
             <input
               className="askai-input"
               value={input}

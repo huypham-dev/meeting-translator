@@ -49,10 +49,23 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
   }
 });
 
-/** Transcript from the last `minutes`, formatted as plain-text AI context. */
+/** Upper bound on context size (~15k tokens) so a very long meeting never overflows the model. */
+const MAX_CONTEXT_CHARS = 60_000;
+
+/**
+ * Transcript from the last `minutes` (`Infinity` = the whole meeting), formatted as
+ * plain-text AI context. If it exceeds the size cap, the oldest lines are dropped.
+ */
 export function getRecentTranscriptText(minutes: number): string {
   const cutoff = Date.now() - minutes * 60_000;
   const recent = entries.filter((e) => e.timestamp >= cutoff);
   const withLive = live ? [...recent, live] : recent;
-  return withLive.map((e) => (e.translated ? `EN: ${e.source}\nVI: ${e.translated}` : `EN: ${e.source}`)).join("\n\n");
+  const text = withLive
+    .map((e) => (e.translated ? `EN: ${e.source}\nVI: ${e.translated}` : `EN: ${e.source}`))
+    .join("\n\n");
+  if (text.length <= MAX_CONTEXT_CHARS) return text;
+  const tail = text.slice(-MAX_CONTEXT_CHARS);
+  // Start at a line boundary so the first line is not cut in half.
+  const firstBreak = tail.indexOf("\n\n");
+  return firstBreak === -1 ? tail : tail.slice(firstBreak + 2);
 }
