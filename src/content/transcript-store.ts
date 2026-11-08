@@ -1,9 +1,12 @@
 import { isExtensionMessage, MessageType } from "@/shared/messages";
+import type { SourceLanguage } from "@/shared/types";
 
 export interface TranscriptEntry {
   source: string;
   translated: string;
   timestamp: number;
+  /** Language of `source`; absent on entries without it, treated as English. */
+  language?: SourceLanguage;
 }
 
 /**
@@ -31,14 +34,14 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
   if (!isExtensionMessage(message)) return;
 
   if (message.type === MessageType.TRANSLATION_UPDATE) {
-    const { source, translated, isFinal } = message.payload;
+    const { source, translated, isFinal, language } = message.payload;
 
     if (isFinal) {
-      if (source.trim()) entries = [...entries, { source, translated, timestamp: Date.now() }];
+      if (source.trim()) entries = [...entries, { source, translated, timestamp: Date.now(), language }];
       live = null;
       notify();
     } else {
-      live = { source, translated, timestamp: Date.now() };
+      live = { source, translated, timestamp: Date.now(), language };
     }
   }
 
@@ -61,7 +64,10 @@ export function getRecentTranscriptText(minutes: number): string {
   const recent = entries.filter((e) => e.timestamp >= cutoff);
   const withLive = live ? [...recent, live] : recent;
   const text = withLive
-    .map((e) => (e.translated ? `EN: ${e.source}\nVI: ${e.translated}` : `EN: ${e.source}`))
+    .map((e) => {
+      const tag = e.language === "vi" ? "VI" : "EN";
+      return e.translated ? `${tag}: ${e.source}\nVI: ${e.translated}` : `${tag}: ${e.source}`;
+    })
     .join("\n\n");
   if (text.length <= MAX_CONTEXT_CHARS) return text;
   const tail = text.slice(-MAX_CONTEXT_CHARS);

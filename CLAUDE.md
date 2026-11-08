@@ -30,4 +30,4 @@ Key points that span files:
 - Host matches (content script + `host_permissions`) are in `manifest.config.ts`; any new API domain must be added there.
 - Path alias `@/` → `src/` (see `tsconfig.json` / `vite.config.ts`).
 
-Scope is English → Vietnamese only; Meet's own caption DOM is intentionally not used as a transcript source.
+The spoken language is chosen manually in the popup (`sourceLanguage`: `en` or `vi`; Deepgram has no language detection for streaming). English is translated to Vietnamese; Vietnamese is notes-only (no captions, no translation). Switching mid-session sends `SET_SOURCE_LANGUAGE` from the popup straight to the offscreen doc, which reconnects only the STT socket. Meeting summaries are always written in Vietnamese. No other languages. Meet's own caption DOM is intentionally not used as a transcript source.

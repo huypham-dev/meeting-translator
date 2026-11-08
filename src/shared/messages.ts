@@ -1,5 +1,5 @@
 import type { ProviderSettings } from "./settings";
-import type { CaptionState, StatusUpdate, TranscriptResult } from "./types";
+import type { CaptionState, SourceLanguage, StatusUpdate, TranscriptResult } from "./types";
 
 /**
  * Every message that flows between popup <-> background <-> offscreen <-> content script.
@@ -13,6 +13,8 @@ export const MessageType = {
   // background -> offscreen
   INIT_CAPTURE: "INIT_CAPTURE",
   STOP_CAPTURE: "STOP_CAPTURE",
+  // popup -> offscreen (extension pages receive each other's runtime messages directly)
+  SET_SOURCE_LANGUAGE: "SET_SOURCE_LANGUAGE",
 
   // offscreen -> background
   OFFSCREEN_READY: "OFFSCREEN_READY",
@@ -37,6 +39,7 @@ export type ExtensionMessage =
   | { type: typeof MessageType.GET_STATUS }
   | { type: typeof MessageType.INIT_CAPTURE; payload: { streamId: string; tabId: number; context?: string; settings: ProviderSettings } }
   | { type: typeof MessageType.STOP_CAPTURE }
+  | { type: typeof MessageType.SET_SOURCE_LANGUAGE; payload: { language: SourceLanguage } }
   | { type: typeof MessageType.OFFSCREEN_READY }
   | { type: typeof MessageType.STATUS_UPDATE; payload: StatusUpdate }
   | { type: typeof MessageType.TRANSCRIPT_UPDATE; payload: TranscriptResult }

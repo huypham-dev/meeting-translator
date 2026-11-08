@@ -147,7 +147,7 @@ export function AskAiSidebar() {
                 transcript.map((e) => (
                   <div key={e.timestamp} className="askai-transcript-row">
                     <time>{formatTime(e.timestamp)}</time>
-                    <span>{e.translated}</span>
+                    <span>{e.translated || e.source}</span>
                   </div>
                 ))
               )

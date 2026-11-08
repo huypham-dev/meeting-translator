@@ -11,10 +11,15 @@ export interface TranscriptResult {
   confidence?: number;
 }
 
+/** Language being spoken in the meeting. Vietnamese is notes-only (no captions, no translation). */
+export type SourceLanguage = "en" | "vi";
+
 export interface CaptionState {
   source: string;
   translated: string;
   isFinal: boolean;
+  /** Language of `source`. Absent on messages from older sessions; treat as English. */
+  language?: SourceLanguage;
 }
 
 export interface StatusUpdate {

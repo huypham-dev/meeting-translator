@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getProviderSettings, patchProviderSettings } from "@/shared/settings";
 import { isExtensionMessage, MessageType } from "@/shared/messages";
-import { SHOW_SOURCE_STORAGE_KEY, type TranslationStatus } from "@/shared/types";
+import { SHOW_SOURCE_STORAGE_KEY, type SourceLanguage, type TranslationStatus } from "@/shared/types";
 
 const STATUS_LABEL: Record<TranslationStatus, string> = {
   idle: "Ready",
@@ -30,6 +30,7 @@ export function Popup() {
   const [translateEnabled, setTranslateEnabled] = useState(true);
   const [includeMic, setIncludeMic] = useState(false);
   const [micHint, setMicHint] = useState("");
+  const [sourceLanguage, setSourceLanguage] = useState<SourceLanguage>("en");
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: MessageType.GET_STATUS }).then((res) => {
@@ -42,6 +43,7 @@ export function Popup() {
     getProviderSettings().then((s) => {
       setTranslateEnabled(s.translateEnabled);
       setIncludeMic(s.includeMic);
+      setSourceLanguage(s.sourceLanguage);
     });
 
     chrome.storage.local.get([SHOW_SOURCE_STORAGE_KEY]).then((stored) => {
@@ -82,6 +84,20 @@ export function Popup() {
   const handleTranslateChange = (value: boolean) => {
     setTranslateEnabled(value);
     void patchProviderSettings({ translateEnabled: value });
+  };
+
+  const handleLanguageChange = (value: SourceLanguage) => {
+    setSourceLanguage(value);
+    void patchProviderSettings({ sourceLanguage: value });
+    // The offscreen document is the only context that owns the STT socket, so it gets the
+    // message directly; it reconnects STT without restarting audio capture.
+    if (status === "listening") {
+      chrome.runtime
+        .sendMessage({ type: MessageType.SET_SOURCE_LANGUAGE, payload: { language: value } })
+        .catch(() => {
+          // Offscreen document already gone; the saved setting applies on the next Start.
+        });
+    }
   };
 
   const handleMicChange = async (value: boolean) => {
@@ -154,6 +170,29 @@ export function Popup() {
             boxSizing: "border-box",
           }}
         />
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontSize: 11, color: "#9a9a9e", display: "block", marginBottom: 4 }}>
+          Language being spoken
+        </label>
+        <select
+          value={sourceLanguage}
+          onChange={(e) => handleLanguageChange(e.target.value as SourceLanguage)}
+          disabled={status === "starting" || status === "stopping"}
+          style={{
+            width: "100%",
+            fontSize: 13,
+            padding: "6px 8px",
+            borderRadius: 8,
+            border: "1px solid #3a3a3e",
+            background: "#2c2c2e",
+            color: "#fff",
+          }}
+        >
+          <option value="en">English (translated to Vietnamese)</option>
+          <option value="vi">Tiếng Việt (notes only, no captions)</option>
+        </select>
       </div>
 
       {[
@@ -232,7 +271,7 @@ export function Popup() {
           opacity: busy || status === "stopping" ? 0.6 : 1,
         }}
       >
-        {isListening ? "Stop" : translateEnabled ? "Start Translation" : "Start Notes"}
+        {isListening ? "Stop" : translateEnabled && sourceLanguage === "en" ? "Start Translation" : "Start Notes"}
       </button>
     </div>
   );

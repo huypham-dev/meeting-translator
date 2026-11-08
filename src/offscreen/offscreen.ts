@@ -1,7 +1,7 @@
 import { createLogger } from "@/shared/logger";
 import { isExtensionMessage, MessageType, type ExtensionMessage } from "@/shared/messages";
 import type { ProviderSettings } from "@/shared/settings";
-import { PCM_CHUNK_MS, PCM_SAMPLE_RATE, type CaptionState } from "@/shared/types";
+import { PCM_CHUNK_MS, PCM_SAMPLE_RATE, type CaptionState, type SourceLanguage } from "@/shared/types";
 import { DeepgramSTTProvider } from "@/services/stt/deepgram";
 import type { StreamingSTTProvider } from "@/services/stt/types";
 import { createTranslationProvider } from "@/services/translation/providers";
@@ -11,7 +11,6 @@ import { WORKLET_PROCESSOR_NAME, WORKLET_URL } from "./audio-worklet";
 const log = createLogger("Audio");
 const sttLog = createLogger("STT");
 
-const SOURCE_LANGUAGE = "en";
 const TARGET_LANGUAGE = "vi";
 
 let mediaStream: MediaStream | null = null;
@@ -23,6 +22,10 @@ let micSourceNode: MediaStreamAudioSourceNode | null = null;
 let sttProvider: StreamingSTTProvider | null = null;
 let translator: IncrementalTranslator | null = null;
 let stopping = false;
+// Kept so a language switch can reconnect STT without a new INIT_CAPTURE.
+let currentSettings: ProviderSettings | null = null;
+let currentContext: string | undefined;
+let languageSwitchId = 0;
 
 function sendToBackground(message: ExtensionMessage) {
   chrome.runtime.sendMessage(message).catch(() => {
@@ -32,6 +35,89 @@ function sendToBackground(message: ExtensionMessage) {
 
 function reportStatus(status: "starting" | "listening" | "error", message?: string) {
   sendToBackground({ type: MessageType.STATUS_UPDATE, payload: { status, message } });
+}
+
+/**
+ * Opens the STT socket for `language` and wires its results to the background.
+ * English is translated to Vietnamese (when Translate is on). Vietnamese is
+ * notes-only: the source text is forwarded with an empty translation, which the
+ * overlay skips, while notes and Ask AI only need the source.
+ */
+async function openStt(language: SourceLanguage, settings: ProviderSettings, context?: string): Promise<void> {
+  const stt = new DeepgramSTTProvider({
+    apiKey: settings.deepgramApiKey,
+    sampleRate: PCM_SAMPLE_RATE,
+    language,
+  });
+  sttProvider = stt;
+
+  let activeTranslator: IncrementalTranslator | null = null;
+  if (settings.translateEnabled && language === "en") {
+    const provider = createTranslationProvider(settings.translationProvider, {
+      openAiApiKey: settings.openAiApiKey,
+      context,
+    });
+    activeTranslator = new IncrementalTranslator(provider, language, TARGET_LANGUAGE);
+    activeTranslator.onUpdate((state: CaptionState) => {
+      sendToBackground({ type: MessageType.TRANSLATION_UPDATE, payload: { ...state, language } });
+    });
+  }
+  translator = activeTranslator;
+
+  // After a language switch the old socket may still deliver a message or close:
+  // ignore anything that is not from the current provider.
+  stt.onTranscript((result) => {
+    if (sttProvider !== stt) return;
+    sendToBackground({ type: MessageType.TRANSCRIPT_UPDATE, payload: result });
+    if (activeTranslator) {
+      activeTranslator.update(result.text, result.isFinal);
+    } else if (result.text.trim()) {
+      sendToBackground({
+        type: MessageType.TRANSLATION_UPDATE,
+        payload: { source: result.text.trim(), translated: "", isFinal: result.isFinal, language },
+      });
+    }
+  });
+
+  stt.onError((error) => {
+    if (sttProvider !== stt) return;
+    sttLog.error(error.message);
+    reportStatus("error", `STT error: ${error.message}`);
+  });
+
+  stt.onClose(() => {
+    if (!stopping && sttProvider === stt) {
+      sttLog.warn("STT connection closed unexpectedly");
+      reportStatus("error", "STT connection lost");
+    }
+  });
+
+  await stt.connect();
+}
+
+/** Reconnects only the STT socket for a new spoken language; the audio pipeline keeps running. */
+async function switchLanguage(language: SourceLanguage): Promise<void> {
+  if (!audioContext || !currentSettings) return; // nothing is being captured
+  const switchId = ++languageSwitchId;
+
+  const previous = sttProvider;
+  sttProvider = null;
+  translator?.reset();
+  translator = null;
+  previous?.close();
+
+  currentSettings = { ...currentSettings, sourceLanguage: language };
+  try {
+    await openStt(language, currentSettings, currentContext);
+    reportStatus("listening");
+  } catch (err) {
+    // A newer switch superseded this one and closed its socket: not a real failure.
+    if (switchId !== languageSwitchId) return;
+    log.error("STT reconnect after language switch failed", err);
+    reportStatus("error", err instanceof Error ? err.message : "Failed to reconnect to STT service");
+    await stopCapture();
+    throw err;
+  }
 }
 
 async function startCapture(streamId: string, _tabId: number, settings: ProviderSettings, context?: string): Promise<void> {
@@ -104,52 +190,11 @@ async function startCapture(streamId: string, _tabId: number, settings: Provider
     throw err;
   }
 
+  currentSettings = settings;
+  currentContext = context;
+
   try {
-    sttProvider = new DeepgramSTTProvider({
-      apiKey: settings.deepgramApiKey,
-      sampleRate: PCM_SAMPLE_RATE,
-      language: SOURCE_LANGUAGE,
-    });
-
-    if (settings.translateEnabled) {
-      const provider = createTranslationProvider(settings.translationProvider, {
-        openAiApiKey: settings.openAiApiKey,
-        context,
-      });
-      translator = new IncrementalTranslator(provider, SOURCE_LANGUAGE, TARGET_LANGUAGE);
-
-      translator.onUpdate((state: CaptionState) => {
-        sendToBackground({ type: MessageType.TRANSLATION_UPDATE, payload: state });
-      });
-    }
-
-    sttProvider.onTranscript((result) => {
-      sendToBackground({ type: MessageType.TRANSCRIPT_UPDATE, payload: result });
-      if (translator) {
-        translator.update(result.text, result.isFinal);
-      } else if (result.text.trim()) {
-        // Notes-only: forward the source text with no translation. The overlay skips
-        // empty translations; notes and Ask AI only need the source.
-        sendToBackground({
-          type: MessageType.TRANSLATION_UPDATE,
-          payload: { source: result.text.trim(), translated: "", isFinal: result.isFinal },
-        });
-      }
-    });
-
-    sttProvider.onError((error) => {
-      sttLog.error(error.message);
-      reportStatus("error", `STT error: ${error.message}`);
-    });
-
-    sttProvider.onClose(() => {
-      if (!stopping) {
-        sttLog.warn("STT connection closed unexpectedly");
-        reportStatus("error", "STT connection lost");
-      }
-    });
-
-    await sttProvider.connect();
+    await openStt(settings.sourceLanguage, settings, context);
   } catch (err) {
     log.error("STT connection failed", err);
     reportStatus("error", err instanceof Error ? err.message : "Failed to connect to STT service");
@@ -163,6 +208,8 @@ async function startCapture(streamId: string, _tabId: number, settings: Provider
 
 async function stopCapture(): Promise<void> {
   stopping = true;
+  currentSettings = null;
+  currentContext = undefined;
 
   try {
     sttProvider?.close();
@@ -229,6 +276,13 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 
   if (message.type === MessageType.INIT_CAPTURE) {
     startCapture(message.payload.streamId, message.payload.tabId, message.payload.settings, message.payload.context)
+      .then(() => sendResponse({ ok: true }))
+      .catch((err: unknown) => sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }));
+    return true;
+  }
+
+  if (message.type === MessageType.SET_SOURCE_LANGUAGE) {
+    switchLanguage(message.payload.language)
       .then(() => sendResponse({ ok: true }))
       .catch((err: unknown) => sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }));
     return true;

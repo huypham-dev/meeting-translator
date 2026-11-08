@@ -63,7 +63,9 @@ export class DeepgramSTTProvider implements StreamingSTTProvider {
         smart_format: "true",
         endpointing: "300",
         language: this.config.language ?? "en",
-        model: "nova-2",
+        // nova-2 accepts language=vi but returned only empty results for Vietnamese speech;
+        // nova-3 lists Vietnamese as a monolingual language. English keeps the known-good nova-2.
+        model: this.config.language === "vi" ? "nova-3" : "nova-2",
       });
 
       const url = `${DEEPGRAM_URL}?${params.toString()}`;

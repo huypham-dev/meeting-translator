@@ -1,3 +1,5 @@
+import type { SourceLanguage } from "./types";
+
 /** User-provided provider settings, kept in chrome.storage.local (never bundled). */
 export interface ProviderSettings {
   deepgramApiKey: string;
@@ -7,6 +9,8 @@ export interface ProviderSettings {
   translateEnabled: boolean;
   /** Mix the user's own microphone into the audio sent to STT. */
   includeMic: boolean;
+  /** Language being spoken. "vi" is notes-only: the speech is transcribed but not translated or captioned. */
+  sourceLanguage: SourceLanguage;
 }
 
 const SETTINGS_STORAGE_KEY = "providerSettings";
@@ -17,6 +21,7 @@ const DEFAULTS: ProviderSettings = {
   translationProvider: "mymemory",
   translateEnabled: true,
   includeMic: false,
+  sourceLanguage: "en",
 };
 
 /** Users sometimes paste a whole `.env` line (`NAME=value`) or a quoted value; keep only the key. */
