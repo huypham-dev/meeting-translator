@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
-import { getProviderSettings, patchProviderSettings, type ProviderSettings } from "@/shared/settings";
+import { getProviderSettings, normalizeApiKey, patchProviderSettings, type ProviderSettings } from "@/shared/settings";
 
 const field: CSSProperties = {
   width: "100%",
@@ -51,8 +51,8 @@ export function Options() {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     patchProviderSettings({
-      deepgramApiKey: settings.deepgramApiKey.trim(),
-      openAiApiKey: settings.openAiApiKey.trim(),
+      deepgramApiKey: normalizeApiKey(settings.deepgramApiKey),
+      openAiApiKey: normalizeApiKey(settings.openAiApiKey),
       translationProvider: settings.translationProvider,
     }).then(() => setSaved(true));
   };

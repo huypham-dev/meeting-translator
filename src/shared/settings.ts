@@ -19,9 +19,20 @@ const DEFAULTS: ProviderSettings = {
   includeMic: false,
 };
 
+/** Users sometimes paste a whole `.env` line (`NAME=value`) or a quoted value; keep only the key. */
+export function normalizeApiKey(raw: string): string {
+  const withoutName = raw.trim().replace(/^[A-Za-z_][A-Za-z0-9_]*\s*=\s*/, "");
+  return withoutName.trim().replace(/^["']|["']$/g, "").trim();
+}
+
 export async function getProviderSettings(): Promise<ProviderSettings> {
   const stored = await chrome.storage.local.get([SETTINGS_STORAGE_KEY]);
-  return { ...DEFAULTS, ...(stored[SETTINGS_STORAGE_KEY] as Partial<ProviderSettings> | undefined) };
+  const settings = { ...DEFAULTS, ...(stored[SETTINGS_STORAGE_KEY] as Partial<ProviderSettings> | undefined) };
+  return {
+    ...settings,
+    deepgramApiKey: normalizeApiKey(settings.deepgramApiKey),
+    openAiApiKey: normalizeApiKey(settings.openAiApiKey),
+  };
 }
 
 /** Merge a partial update into the latest stored settings (safe when popup and options are both open). */
